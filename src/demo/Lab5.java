@@ -8,6 +8,7 @@ import lejos.hardware.port.Port;
 import lejos.hardware.sensor.SensorModes;
 import lejos.hardware.sensor.EV3UltrasonicSensor;
 import lejos.robotics.SampleProvider;
+import java.text.DecimalFormat;
 import ca.Display;
 import ca.Odometer;
 import lejos.hardware.Button;
@@ -21,6 +22,7 @@ import lejos.hardware.sensor.EV3ColorSensor;
 public class Lab5 {
   private static final EV3LargeRegulatedMotor leftMotor =new EV3LargeRegulatedMotor(LocalEV3.get().getPort("C"));
   private static final EV3LargeRegulatedMotor rightMotor =new EV3LargeRegulatedMotor(LocalEV3.get().getPort("D"));
+  private static final EV3LargeRegulatedMotor colorMotor =new EV3LargeRegulatedMotor(LocalEV3.get().getPort("A"));
 
   //Sets up the lcd
   static final TextLCD lcd = LocalEV3.get().getTextLCD();
@@ -32,8 +34,8 @@ public class Lab5 {
   private static final int ROTATE_SPEED = 75;
   private static final int ACCELERATION = 500;
   private static final double TILE_SIZE=30.48;
-  private static final int canDi=2;
-  private static boolean foundCan=false;
+  private static final double SENSOR_TOCENTER=10;
+  
   
   //Setup the ultrasonic sensor
   private static Port portUS= LocalEV3.get().getPort("S1");
@@ -51,8 +53,25 @@ public class Lab5 {
 //Setup the right line-detector
   private static Port portColorRight= LocalEV3.get().getPort("S1");
   private static SensorModes myColorRight= new EV3ColorSensor(portColorRight);
-  private static SampleProvider myColorStatusRight = myColorRight.getMode("Red");
+  private static SampleProvider myColorStatusRight = myColorRight.getMode("RGB");
   private static float[] sampleColorRight= new float[myColorStatusRight.sampleSize()];
+  
+  
+//Setup the can color detector
+  private static Port portColorCan= LocalEV3.get().getPort("S2");
+  private static SensorModes myColorCan= new EV3ColorSensor(portColorCan);
+  private static SampleProvider myColorStatusCan = myColorCan.getMode("Red");
+  private static float[] sampleColorCan= new float[myColorStatusCan.sampleSize()];
+  private static final int canDi=2;
+  private static boolean foundCan=false;
+  private static final int TR=1;
+  private static float[] averages=new float[3];
+  private static float[] deviations =new float[3];
+  private static double xFound=-1;
+  private static double yFound=-1;
+  
+  
+  
   private static final long CORRECTION_PERIOD = 10; //minimum period in ms for scanning light
   private static final double LIGHT_THRESHOLD=0.05;
   
@@ -80,7 +99,11 @@ public class Lab5 {
     if(URy<1.0) {URy=1.0;} else if(URy>7.0) {URy=7.0;}
     // cans are only going to be present on intersections, so we exclude no intersection parts
     
-                                                              
+    if(TR==1) {averages[0]=0;averages[1]=0;averages[2]=0;deviations[0]=0;deviations[1]=0;deviations[2]=0;}
+    if(TR==2) {averages[0]=0;averages[1]=0;averages[2]=0;deviations[0]=0;deviations[1]=0;deviations[2]=0;}
+    if(TR==3) {averages[0]=0;averages[1]=0;averages[2]=0;deviations[0]=0;deviations[1]=0;deviations[2]=0;}
+    if(TR==4) {averages[0]=0;averages[1]=0;averages[2]=0;deviations[0]=0;deviations[1]=0;deviations[2]=0;}
+    
     Display odometryDisplay = new Display(lcd);
     Thread odoThread = new Thread(odometer); 
     Thread odoDisplayThread = new Thread(odometryDisplay);
@@ -96,6 +119,30 @@ public class Lab5 {
     fallingEdge(); // call the falling edge method
     lightLocalize(); // localize x,y,t coordinates then go to the lower left corner
     sweepRegion();
+    if(!foundCan) { // if the can was not found
+      double[] currentPosition=odometer.getXYT();
+      double toTurn=getAngle(currentPosition[0],currentPosition[1],(URx)*TILE_SIZE, URy*TILE_SIZE,currentPosition[2]);
+      double toAdvance=getDistance(currentPosition[0],currentPosition[1],(URx)*TILE_SIZE, URy*TILE_SIZE);
+      rotateInPlace(toTurn);
+      advance(toAdvance);
+      lcd.drawString("Can Not Found",0,3);
+    }
+    else {
+      advance(-10);
+      rotateInPlace(90);
+      advance(15);
+      rotateInPlace(-odometer.getXYT()[2]);
+      advance(URy*TILE_SIZE+15.0-odometer.getXYT()[1]);
+      double[] currentPosition=odometer.getXYT();
+      double toTurn=getAngle(currentPosition[0],currentPosition[1],(URx)*TILE_SIZE, URy*TILE_SIZE,currentPosition[2]);
+      double toAdvance=getDistance(currentPosition[0],currentPosition[1],(URx)*TILE_SIZE, URy*TILE_SIZE);
+      rotateInPlace(toTurn);
+      advance(toAdvance);
+      lcd.drawString("Can Found",0,3);
+      DecimalFormat numberFormat = new DecimalFormat("######0.00");
+      lcd.drawString("Can x:"+numberFormat.format(xFound),0,4);
+      lcd.drawString("Can x:"+numberFormat.format(yFound),0,5);
+    }
     
   }
   
@@ -280,6 +327,7 @@ public class Lab5 {
     leftMotor.forward();rightMotor.forward(); //keep goign forward
     
     while(motorRight || motorLeft) {  //while at least  motor is going forward
+      correctionStart = System.currentTimeMillis();
       myColorStatusLeft.fetchSample(sampleColorLeft,0);
       myColorStatusRight.fetchSample(sampleColorRight,0);
       
@@ -318,6 +366,7 @@ public class Lab5 {
     leftMotor.forward();rightMotor.forward(); // go forward until further notice
     
     while(!cross) { //while a line has not been detected
+      correctionStart = System.currentTimeMillis();
       myColorStatusLeft.fetchSample(sampleColorLeft,0);
       
       if(sampleColorLeft[0]<rLeft-LIGHT_THRESHOLD) {
@@ -337,8 +386,17 @@ public class Lab5 {
         }
       }
     }
-    if(xCorrection) {odometer.setX(c);}  //set the coordinate
-    else {odometer.setY(c);}
+    if(xCorrection) {odometer.setX(c+SENSOR_TOCENTER);}  //set the coordinate
+    else {
+      double angle=odometer.getXYT()[2];
+      if(angle<190 && angle>170) {
+        odometer.setY(c-SENSOR_TOCENTER);
+        
+      }
+      else {
+        odometer.setY(c+SENSOR_TOCENTER);
+      }
+    }
   }
   
   /**
@@ -395,6 +453,7 @@ public class Lab5 {
     double i=0.0;
     for(i=0;i<numberLines;i++) { //sweep each line
       sweepLine(i);
+      if(foundCan) {return;}
       if(((int)i)%2==0 && i<numberLines-1) { //after each line, do the correction manoeuvre (depending this line
                                              // was "going up" or "going down"
         rotateInPlace(90.0);
@@ -407,8 +466,8 @@ public class Lab5 {
         rotateInPlace(-90.0);
         cCorrection((i+1+URx)*TILE_SIZE,true);
         double[] currentPosition=odometer.getXYT();
-        double toTurn=getAngle(currentPosition[0],currentPosition[1],(i+1.0+URx)*TILE_SIZE, URy*TILE_SIZE+5.0,currentPosition[2]);
-        double toAdvance=getDistance(currentPosition[0],currentPosition[1],(i+1.0+URx)*TILE_SIZE, URy*TILE_SIZE+5.0);
+        double toTurn=getAngle(currentPosition[0],currentPosition[1],(i+1.0+URx)*TILE_SIZE, URy*TILE_SIZE+15.0,currentPosition[2]);
+        double toAdvance=getDistance(currentPosition[0],currentPosition[1],(i+1.0+URx)*TILE_SIZE, URy*TILE_SIZE+15.0);
         rotateInPlace(toTurn);
         advance(toAdvance);
         
@@ -427,8 +486,8 @@ public class Lab5 {
         rotateInPlace(90.0);
         cCorrection((i+1+URx)*TILE_SIZE,true);
         double[] currentPosition=odometer.getXYT();
-        double toTurn=getAngle(currentPosition[0],currentPosition[1],(i+1.0+URx)*TILE_SIZE, URy*TILE_SIZE-5.0,currentPosition[2]);
-        double toAdvance=getDistance(currentPosition[0],currentPosition[1],(i+1.0+URx)*TILE_SIZE, URy*TILE_SIZE-5.0);
+        double toTurn=getAngle(currentPosition[0],currentPosition[1],(i+1.0+URx)*TILE_SIZE, URy*TILE_SIZE-15.0,currentPosition[2]);
+        double toAdvance=getDistance(currentPosition[0],currentPosition[1],(i+1.0+URx)*TILE_SIZE, URy*TILE_SIZE-15.0);
         rotateInPlace(toTurn);
         advance(toAdvance);
         
@@ -444,7 +503,7 @@ public class Lab5 {
     for(j=0;j<numberIntersections;j++) { //at each intersection, check if there is a can or no
       myDistance.fetchSample(sampleUS,0); 
       wallDist= (int)(sampleUS[0]*100.0);
-      if(wallDist<10) {
+      if(wallDist<20) {
         leftMotor.forward();rightMotor.forward();
         while (wallDist>canDi) {
           myDistance.fetchSample(sampleUS,0); 
@@ -462,7 +521,7 @@ public class Lab5 {
   }
   
   public static void avoid() {
-    advance(-5);
+    advance(-13);
     rotateInPlace(-90);
     advance(15);
     rotateInPlace(90);
@@ -473,7 +532,47 @@ public class Lab5 {
   }
   
   public static boolean scanCan() {
-    return false;
+    int i=0;
+    long correctionStart, correctionEnd;
+    float rChannel=0; float gChannel=0; float bChannel=0;
+    colorMotor.setSpeed(36); //will take 5 seconds to turn 180 degrees
+    colorMotor.rotate(180,true);
+    while(i<10) {
+      correctionStart = System.currentTimeMillis();
+      myColorStatusCan.fetchSample(sampleColorCan,0);
+      double norm= Math.sqrt(sampleColorCan[0]*sampleColorCan[0]+sampleColorCan[1]*sampleColorCan[1]+sampleColorCan[2]*sampleColorCan[2]);
+      
+      
+      rChannel=rChannel+sampleColorCan[0]/norm;
+      gChannel=gChannel+sampleColorCan[1]/norm;
+      bChannel=bChannel+sampleColorCan[2]/norm;
+      i++;
+      correctionEnd = System.currentTimeMillis();
+      if (correctionEnd - correctionStart < 400) { //take a measurement every 400 ms
+        try {
+          Thread.sleep(400 - (correctionEnd - correctionStart)); //ensure a minimum scanning period of 10 ms
+        } catch (InterruptedException e) {
+          // there is nothing to be done here
+        }
+      }
+    }
+    rChannel=rChannel/10.0;
+    gChannel=bChannel/10.0;
+    bChannel=gChannel/10.0;
+    
+    if(Math.abs(rChannel-averages[0])<=2*deviations[0] && Math.abs(gChannel-averages[1])<=2*deviations[1] && Math.abs(bChannel-averages[2])<=2*deviations[2]) {
+      foundCan=true;
+      double[] currentPosition=odometer.getXYT();
+      xFound=currentPosition[0];
+      yFound=currentPosition[1];
+      Sound.beep();
+    }
+    else {
+      Sound.twoBeeps();
+    }
+    Thread.sleep(1600); // to ensure that the motor has turned 180 degrees
+    colorMotor.rotate(-180,false);
+    return foundCan;
   }
 
 }
