@@ -1,0 +1,102 @@
+package demo;
+import lejos.hardware.ev3.LocalEV3;
+import lejos.hardware.lcd.TextLCD;
+import lejos.hardware.motor.EV3LargeRegulatedMotor;
+import lejos.hardware.Sound;
+import lejos.hardware.ev3.LocalEV3;
+import lejos.hardware.port.Port;
+import lejos.hardware.sensor.SensorModes;
+import lejos.hardware.sensor.EV3UltrasonicSensor;
+import lejos.robotics.SampleProvider;
+import java.text.DecimalFormat;
+import ca.Display;
+import ca.Odometer;
+import lejos.hardware.Button;
+import lejos.hardware.sensor.EV3ColorSensor;
+
+
+public class Learning {
+//Setup the ultrasonic sensor
+  private static Port portUS= LocalEV3.get().getPort("S1");
+  private static SensorModes myUS =new EV3UltrasonicSensor(portUS);
+  private static SampleProvider myDistance= myUS.getMode("Distance");
+  private static float[] sampleUS= new float[myDistance.sampleSize()];
+  private static int wallDist;
+  
+  private static final EV3LargeRegulatedMotor leftMotor =new EV3LargeRegulatedMotor(LocalEV3.get().getPort("C"));
+  private static final EV3LargeRegulatedMotor rightMotor =new EV3LargeRegulatedMotor(LocalEV3.get().getPort("D"));
+  private static final EV3LargeRegulatedMotor colorMotor =new EV3LargeRegulatedMotor(LocalEV3.get().getPort("A"));
+  
+  private static Port portColorCan= LocalEV3.get().getPort("S2");
+  private static SensorModes myColorCan= new EV3ColorSensor(portColorCan);
+  private static SampleProvider myColorStatusCan = myColorCan.getMode("Red");
+  private static float[] sampleColorCan= new float[myColorStatusCan.sampleSize()];
+  private static final int canDi=2;
+  
+  public static void main(String[] args) {
+    Button.waitForAnyPress();
+    leftMotor.forward();rightMotor.forward();
+    while (wallDist>canDi) {
+      myDistance.fetchSample(sampleUS,0); 
+      wallDist= (int)(sampleUS[0]*100.0);
+    }
+    leftMotor.stop(true);rightMotor.stop();
+    double[] rChannel=new double[10];
+    double[] gChannel=new double[10];
+    double[] bChannel=new double[10];
+    double rMean=0; double gMean=0; double bMean=0;
+    int i=0;
+    long correctionStart, correctionEnd;
+    colorMotor.setSpeed(36); //will take 5 seconds to turn 180 degrees
+    colorMotor.rotate(180,true);
+    while(i<10) {
+      correctionStart = System.currentTimeMillis();
+      myColorStatusCan.fetchSample(sampleColorCan,0);
+      double intem0=sampleColorCan[0];
+      double intem1=sampleColorCan[1];
+      double intem2=sampleColorCan[2];
+      double norm= Math.sqrt(intem0*intem0+intem1*intem1+intem2*intem2);
+      
+      rChannel[i]=intem0/norm;
+      gChannel[i]=intem1/norm;
+      bChannel[i]=intem2/norm;
+      rMean+=rChannel[i];
+      gMean+=gChannel[i];
+      bMean+=bChannel[i];
+      i++;
+      Sound.beep();
+      correctionEnd = System.currentTimeMillis();
+      if (correctionEnd - correctionStart < 400) { //take a measurement every 400 ms
+        try {
+          Thread.sleep(400 - (correctionEnd - correctionStart)); //ensure a minimum scanning period of 10 ms
+        } catch (InterruptedException e) {
+          // there is nothing to be done here
+        }
+      }
+      
+      
+    }
+    
+    rMean/=10; gMean/=10; bMean/=10;
+    
+    double rStd=getStd(rChannel,rMean);
+    double gStd=getStd(gChannel,gMean);
+    double bStd=getStd(bChannel,bMean);
+    
+    
+    
+    
+    Button.waitForAnyPress();
+  }
+  
+  public static double getStd (double[] measurement, double mean) {
+    int size=measurement.length;
+    double acc=0;
+    for(int i=0;i<size;i++) {
+      acc=acc+ (measurement[i]-mean)*(measurement[i]-mean);
+    }
+    acc=acc/(size-1);
+    acc=Math.sqrt(acc);
+    return acc;
+  }
+}
