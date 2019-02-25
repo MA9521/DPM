@@ -1,4 +1,3 @@
-package demo;
 import lejos.hardware.ev3.LocalEV3;
 import lejos.hardware.lcd.TextLCD;
 import lejos.hardware.motor.EV3LargeRegulatedMotor;
@@ -28,10 +27,10 @@ public class Lab5 {
 
   //Parameters for hardware
   private static final double WHEEL_RAD = 2.093;
-  private static final double TRACK = 12.25;
+  private static final double TRACK = 13.1;
   private static final int FORWARD_SPEED = 125;
   private static final int ROTATE_SPEED = 75;
-  private static final int ACCELERATION = 500;
+  
   private static final double TILE_SIZE=30.48;
   private static final double SENSOR_TOCENTER=12.9;
   
@@ -63,7 +62,8 @@ public class Lab5 {
   private static float[] sampleColorCan= new float[myColorStatusCan.sampleSize()];
   private static final int canDi=3;
   private static boolean foundCan=false;
-  private static int TR=2;
+  private static boolean isCan=false;
+  private static int TR=4;
   private static float[] averages=new float[3];
   private static float[] deviations =new float[3];
   private static double xFound=-1;
@@ -93,6 +93,11 @@ public class Lab5 {
    * @param args none
    */
   public static void main(String[] args) throws OdometerExceptions {
+	  
+//	  leftMotor.setAcceleration(ACCELERATION);
+//	  rightMotor.setAcceleration(ACCELERATION);
+
+	  
 	odometer = Odometer.getOdometer(leftMotor, rightMotor, TRACK, WHEEL_RAD);
     if(LLx<1.0) {LLx=1.0;} else if(LLx>7.0) {LLx=7.0;}
     if(LLy<1.0) {LLy=1.0;} else if(LLy>7.0) {LLy=7.0;}
@@ -160,7 +165,7 @@ public class Lab5 {
       lcd.drawString("Can Found",0,3);
       DecimalFormat numberFormat = new DecimalFormat("######0.00");
       lcd.drawString("Can x:"+numberFormat.format(xFound),0,4);
-      lcd.drawString("Can x:"+numberFormat.format(yFound),0,5);
+      lcd.drawString("Can y:"+numberFormat.format(yFound),0,5);
     }
     
   }
@@ -266,8 +271,8 @@ public class Lab5 {
     rotateInPlace(currentChoice[1]); //turn 90 degrees clk to face the left wall
     myDistance.fetchSample(sampleUS,0); 
     wallDist= (int)(sampleUS[0]*100.0);
-    advance(wallDist-18.0); // advance or reverse the robot so it is at 15 cm from the wall
-    rotateInPlace(currentChoice[2]);
+    advance(wallDist-16.0); // advance or reverse the robot so it is at 15 cm from the wall
+    rotateInPlace(currentChoice[2]+5);
     
     angleCorrection(currentChoice[3]); //use the 2 lateral light sensors to correct the angle
     advance(-5.0);
@@ -278,8 +283,8 @@ public class Lab5 {
     cCorrection(currentChoice[6]*TILE_SIZE,true); //correct the x-value to 1*TILE_SIZE
     
     double[] currentPosition=odometer.getXYT();
-    double toTurn=getAngle(currentPosition[0],currentPosition[1],LLx*TILE_SIZE, LLy*TILE_SIZE-5.0,currentPosition[2]);
-    double toAdvance=getDistance(currentPosition[0],currentPosition[1],LLx*TILE_SIZE, LLy*TILE_SIZE-5.0);
+    double toTurn=getAngle(currentPosition[0],currentPosition[1],LLx*TILE_SIZE+2, LLy*TILE_SIZE-5.0,currentPosition[2]);
+    double toAdvance=getDistance(currentPosition[0],currentPosition[1],LLx*TILE_SIZE+2, LLy*TILE_SIZE-5.0);
     rotateInPlace(toTurn);
     advance(toAdvance);  //go to 1/2 tile below the lower left corner
     
@@ -317,7 +322,8 @@ public class Lab5 {
       if(angle>180.0) {angle=angle-360.0;}
       if(angle<-180.0) {angle=angle+360.0;}
    // }
-    leftMotor.setSpeed(ROTATE_SPEED);rightMotor.setSpeed(ROTATE_SPEED);
+    leftMotor.setSpeed(ROTATE_SPEED);
+    rightMotor.setSpeed(ROTATE_SPEED);
     double calc=convertAngle(WHEEL_RAD, TRACK, angle);
     leftMotor.rotate((int) calc, true);
     rightMotor.rotate((int) -calc, false);
@@ -328,7 +334,8 @@ public class Lab5 {
    * @param distance
    */
   private static void advance (double distance) {
-    leftMotor.setSpeed(FORWARD_SPEED-1); rightMotor.setSpeed(FORWARD_SPEED);
+    leftMotor.setSpeed(FORWARD_SPEED-1);
+    rightMotor.setSpeed(FORWARD_SPEED);
     double calc=convertDistance(WHEEL_RAD, distance);
     leftMotor.rotate((int)calc, true);
     rightMotor.rotate((int)calc, false);
@@ -345,6 +352,7 @@ public class Lab5 {
     float rLeft= sampleColorLeft[0];
     myColorStatusRight.fetchSample(sampleColorRight,0);
     float rRight= sampleColorRight[0];
+    
     leftMotor.forward();rightMotor.forward(); //keep goign forward
     
     while(motorRight || motorLeft) {  //while at least  motor is going forward
@@ -353,16 +361,16 @@ public class Lab5 {
       myColorStatusLeft.fetchSample(sampleColorLeft,0);
       
       
-      
+      if(sampleColorLeft[0]<rLeft-LIGHT_THRESHOLD+0.01) { // if left sensor detects line, stop left motor
+          leftMotor.stop(true);motorLeft=false;Sound.beep();
+        }
       
       if(sampleColorRight[0]<rRight-LIGHT_THRESHOLD) { //if right sensor detects line ,stop right motor
         rightMotor.stop(true);motorRight=false; Sound.beep();
       }
       
       
-      if(sampleColorLeft[0]<rLeft-LIGHT_THRESHOLD) { // if left sensor detects line, stop left motor
-          leftMotor.stop(true);motorLeft=false;Sound.beep();
-        }
+      
       rRight=sampleColorRight[0];
       rLeft=sampleColorLeft[0];
       correctionEnd = System.currentTimeMillis();
@@ -387,6 +395,7 @@ public class Lab5 {
     long correctionStart, correctionEnd;
     myColorStatusLeft.fetchSample(sampleColorLeft,0);
     float rLeft= sampleColorLeft[0];  // we use only the left sensor
+    
     leftMotor.forward();rightMotor.forward(); // go forward until further notice
     
     while(!cross) { //while a line has not been detected
@@ -483,28 +492,28 @@ public class Lab5 {
         advance(-10);
     	rotateInPlace(90.0);
         advance(15.0);
-        rotateInPlace(92.0);
+        rotateInPlace(90.0-10);
         angleCorrection(180.0);
         advance(-5.0);
         cCorrection(URy*TILE_SIZE,false);
         advance(-15.0);
-        rotateInPlace(-93.0);
+        rotateInPlace(-90.0-2);
         cCorrection((i+1+LLx)*TILE_SIZE,true);
         double[] currentPosition=odometer.getXYT();
-        double toTurn=getAngle(currentPosition[0],currentPosition[1],(i+1.0+LLx)*TILE_SIZE, URy*TILE_SIZE+15.0,currentPosition[2]);
-        double toAdvance=getDistance(currentPosition[0],currentPosition[1],(i+1.0+LLx)*TILE_SIZE, URy*TILE_SIZE+15.0);
+        double toTurn=getAngle(currentPosition[0],currentPosition[1],(i+1.0+LLx)*TILE_SIZE+1, URy*TILE_SIZE+15.0,currentPosition[2]);
+        double toAdvance=getDistance(currentPosition[0],currentPosition[1],(i+1.0+LLx)*TILE_SIZE+1, URy*TILE_SIZE+15.0);
         rotateInPlace(toTurn);
         advance(toAdvance);
         
      
-        rotateInPlace(180-odometer.getXYT()[2]-15);
+        rotateInPlace(180-odometer.getXYT()[2]-3);
         
       }
       else if(((int)i)%2==1 && i<numberLines-1){
     	  advance(-10);
         rotateInPlace(-90.0);
         advance(15.0);
-        rotateInPlace(-90.0);
+        rotateInPlace(-90.0+10);
         angleCorrection(0.0);
         advance(-5.0);
         cCorrection(LLy*TILE_SIZE,false);
@@ -517,82 +526,83 @@ public class Lab5 {
         rotateInPlace(toTurn);
         advance(toAdvance);
         
-        rotateInPlace(-odometer.getXYT()[2]);
+        rotateInPlace(-odometer.getXYT()[2]+6);
         
       }
     }
     
   }
   private static void sweepLine(double i) {
-    double j =0;
+	  int x = 0;
+    
     boolean continuing=true;
+    
     leftMotor.setSpeed(FORWARD_SPEED-1);rightMotor.setSpeed(FORWARD_SPEED);
     leftMotor.forward(); rightMotor.forward();
     while(continuing) { //at each intersection, check if there is a can or no
+    	isCan= false;
     	leftMotor.forward(); rightMotor.forward();
     	
       myDistance.fetchSample(sampleUS,0); 
       wallDist= (int)(sampleUS[0]*100.0);
-      if(wallDist<20) {
-        leftMotor.forward();rightMotor.forward();
-        while (wallDist>canDi) {
-          myDistance.fetchSample(sampleUS,0); 
-          wallDist= (int)(sampleUS[0]*100.0);
+      if(wallDist<5) {
+    	 
+    	  while (wallDist>canDi) {
+    		  myDistance.fetchSample(sampleUS,0); 
+    		  wallDist= (int)(sampleUS[0]*100.0);
+    	  }
+    	  
+    	  
+    	  leftMotor.stop(true);rightMotor.stop();
+          scanCan();
+          if(foundCan == true) {
+        	  return;
+          }
+          if(isCan == true)
+          	 {
+          avoid();
+          
         }
-        leftMotor.stop(true);rightMotor.stop();
-        if(scanCan()) {return;}
-        avoid();
       }
-      double currentY=odometer.getXYT()[1];
-      if(((int)i)%2==0 && currentY>(URy*TILE_SIZE)+15) {
-    	  continuing=false;
-      }
-      if(((int)i)%2==1 && currentY<(LLy*TILE_SIZE)-15) {
-    	  continuing=false;
-      }
+          double currentY=odometer.getXYT()[1];
+          if(((int)i)%2==0 && currentY>(URy*TILE_SIZE)+15) {
+        	  continuing=false;
+          }
+          if(((int)i)%2==1 && currentY<(LLy*TILE_SIZE)-15) {
+        	  continuing=false;
+          }
+          
+      
+      
     }
     rightMotor.stop(true);leftMotor.stop();
     
   }
+  
   
   public static void avoid() {
     advance(-13);
     rotateInPlace(-90);
     advance(15);
     rotateInPlace(90);
-    advance(TILE_SIZE);
+    advance(TILE_SIZE+3);
     rotateInPlace(90);
     advance(15);
     rotateInPlace(-90);
   }
   
   public static boolean scanCan() {
-    int i=0;
-    long correctionStart, correctionEnd;
-    //float rChannel=0; float gChannel=0; float bChannel=0;
-    double rMean=0; double gMean=0; double bMean=0;
-    colorMotor.setSpeed(36); //will take 5 seconds to turn 180 degrees
-    colorMotor.rotate(170,true);
-//    while(i<20) {
-//      correctionStart = System.currentTimeMillis();
-//      myColorStatusCan.fetchSample(sampleColorCan,0);
-//      double norm= Math.sqrt(sampleColorCan[0]*sampleColorCan[0]+sampleColorCan[1]*sampleColorCan[1]+sampleColorCan[2]*sampleColorCan[2]);
-//      
-//      
-//      rChannel=rChannel+sampleColorCan[0]/(float)norm;
-//      gChannel=gChannel+sampleColorCan[1]/(float)norm;
-//      bChannel=bChannel+sampleColorCan[2]/(float)norm;
-//      i++;
-//      correctionEnd = System.currentTimeMillis();
-//      if (correctionEnd - correctionStart < 200) { //take a measurement every 400 ms
-//        try {
-//          Thread.sleep(200 - (correctionEnd - correctionStart)); //ensure a minimum scanning period of 10 ms
-//        } catch (InterruptedException e) {
-//          // there is nothing to be done here
-//        }
-//      }
-//    }   
-    while(i<20) {
+	  int counter=4;
+	  
+	 
+	  
+	  
+	    double rMean=0; double gMean=0; double bMean=0;
+	    int i=0;
+	    long correctionStart, correctionEnd;
+	    colorMotor.setSpeed(36); //will take 5 seconds to turn 180 degrees
+	    colorMotor.rotate(170,true);
+	    while(i<20) {
 	      correctionStart = System.currentTimeMillis();
 	      myColorStatusCan.fetchSample(sampleColorCan,0);
 	      double intem0=sampleColorCan[0];
@@ -617,113 +627,86 @@ public class Lab5 {
 	      
 	      
 	    }
-    rMean=rMean/20;
-    gMean=gMean/20;
-    gMean=gMean/20;
-    float[] blueAverages= {0.48f,0.56f,0.62f};float[] blueStd= {0.16f,0.14f,0.18f};
-    float[] greenAverages= {0.50f,0.74f,0.39f};float[] greenStd= {0.12f,0.08f,0.18f};
-    float[] yellowAverages= {0.86f,0.38f,0.29f};float[] yellowStd= {0.05f,0.05f,0.18f};
-    float[] redAverages= {0.98f,0.11f,0.14f};float[] redStd= {0.01f,0.04f,0.05f};
-    int counter = 4;
-    if(Math.abs(rMean-blueAverages[0])<=2*blueStd[0] &&  Math.abs(gMean-blueAverages[1])<=2*blueStd[1] && Math.abs(bMean-blueAverages[2])<=2*blueStd[2]) {
-    	if((rMean-blueAverages[0])*(rMean-blueAverages[0])+(gMean-blueAverages[1])*(gMean-blueAverages[1])+(bMean-blueAverages[2])*(bMean-blueAverages[2])
-    			<(rMean-greenAverages[0])*(rMean-greenAverages[0])+(gMean-greenAverages[1])*(gMean-greenAverages[1])+(bMean-greenAverages[2])*(bMean-greenAverages[2])) {
-    		lcd.drawString("Blue",0,counter);counter++;
-    	}
-    	else {
-    		lcd.drawString("Green",0,counter);counter++;
-    	}
-    }
-    
-    if(Math.abs(rMean-greenAverages[0])<=2*greenStd[0] &&  Math.abs(gMean-greenAverages[1])<=2*greenStd[1] && Math.abs(bMean-greenAverages[2])<=2*greenStd[2]) {
-    	if(counter==1) {
-    	if((rMean-blueAverages[0])*(rMean-blueAverages[0])+(gMean-blueAverages[1])*(gMean-blueAverages[1])+(bMean-blueAverages[2])*(bMean-blueAverages[2])
-    			<(rMean-greenAverages[0])*(rMean-greenAverages[0])+(gMean-greenAverages[1])*(gMean-greenAverages[1])+(bMean-greenAverages[2])*(bMean-greenAverages[2])) {
-    		lcd.drawString("Blue",0,counter);counter++;
-    	}
-    	else {
-    		lcd.drawString("Green",0,counter);counter++;
-    	}
-    	} 
-    }
-    
-    if(Math.abs(rMean-yellowAverages[0])<=2*yellowStd[0] &&  Math.abs(gMean-yellowAverages[1])<=2*yellowStd[1] && Math.abs(bMean-yellowAverages[2])<=2*yellowStd[2]) {
-    	lcd.drawString("Yellow",0,counter);counter++;
-    }
-    
-    if(Math.abs(rMean-redAverages[0])<=2*redStd[0] &&  Math.abs(gMean-redAverages[1])<=2*redStd[1] && Math.abs(bMean-redAverages[2])<=2*redStd[2]) {
-    	lcd.drawString("Red",0,counter);counter++;
-    }
-    
-    try{Thread.sleep(1600);}
-    catch (Exception e){}
-    colorMotor.rotate(-170,true);
-    return false;
-  }   
-//    if(Math.abs(rMean-blueAverages[0])<=2*blueStd[0] &&  Math.abs(gMean-blueAverages[1])<=2*blueStd[1] && Math.abs(bMean-blueAverages[2])<=2*blueStd[2]) {
-//    	if((rMean-blueAverages[0])*(rMean-blueAverages[0])+(gMean-blueAverages[1])*(gMean-blueAverages[1])+(bMean-blueAverages[2])*(bMean-blueAverages[2])
-//    			<(rMean-greenAverages[0])*(rMean-greenAverages[0])+(gMean-greenAverages[1])*(gMean-greenAverages[1])+(bMean-greenAverages[2])*(bMean-greenAverages[2])) {
-//    		lcd.drawString("Blue",0,4);
-//    	}
-//    	else {
-//    		lcd.drawString("Green",0,4);
-//    	}
-//    }
-//    
-//    else if(Math.abs(rMean-greenAverages[0])<=2*greenStd[0] &&  Math.abs(gMean-greenAverages[1])<=2*greenStd[1] && Math.abs(bMean-greenAverages[2])<=2*greenStd[2]) {
-//    	
-//    	if((rMean-blueAverages[0])*(rMean-blueAverages[0])+(gMean-blueAverages[1])*(gMean-blueAverages[1])+(bMean-blueAverages[2])*(bMean-blueAverages[2])
-//    			<(rMean-greenAverages[0])*(rMean-greenAverages[0])+(gMean-greenAverages[1])*(gMean-greenAverages[1])+(bMean-greenAverages[2])*(bMean-greenAverages[2])) {
-//    		lcd.drawString("Blue",0,4);
-//    	
-//    	} 
-//    }
-//    
-//    else if(Math.abs(rMean-yellowAverages[0])<=2*yellowStd[0] &&  Math.abs(gMean-yellowAverages[1])<=2*yellowStd[1] && Math.abs(bMean-yellowAverages[2])<=2*yellowStd[2]) {
-//    	lcd.drawString("Yellow",0,4);
-//    }
-//    
-//    else if(Math.abs(rMean-redAverages[0])<=2*redStd[0] &&  Math.abs(gMean-redAverages[1])<=2*redStd[1] && Math.abs(bMean-redAverages[2])<=2*redStd[2]) {
-//    	lcd.drawString("Red",0,4);
-//    }
-//    
-//    else {
-//    	lcd.drawString("nothing",0,4);
-//    }
-//    
-//    if(TR==3|| TR==4)
-//    {
-//    	if(Math.abs(rMean-averages[0])<=2*deviations[0] && Math.abs(gMean-averages[1])<=2*deviations[1] && Math.abs(bMean-averages[2])<=2*deviations[2]) {
-//    		foundCan=true;
-//    		double[] currentPosition=odometer.getXYT();
-//    		xFound=currentPosition[0];
-//    		yFound=currentPosition[1];
-//    		Sound.beep();
-//    	}
-//    	else {
-//    		Sound.twoBeeps();
-//    	}
-//    }
-//    else {
-//    	if(diffBlueGreen(rMean,bMean,gMean)) {
-//    		foundCan=true;
-//    	      double[] currentPosition=odometer.getXYT();
-//    	      xFound=currentPosition[0];
-//    	      yFound=currentPosition[1];
-//    	      Sound.beep();
-//    	}
-//    	else {
-//    		Sound.twoBeeps();
-//    	}
-//    }
-//    try {
-//        Thread.sleep(1600); //ensure a minimum scanning period of 10 ms
-//      } catch (InterruptedException e) {
-//        // there is nothing to be done here
-//      }
-//    colorMotor.rotate(-180,false);
-//    return foundCan;
-//  }
+	    
+	    
+	    
+	    rMean/=20; gMean/=20; bMean/=20;
+	    
+	    //float[] blueAverages= {0.48f,0.56f,0.62f};float[] blueStd= {0.16f,0.14f,0.18f};
+	    float[] blueAverages= {0.37f,0.68f,0.56f};float[] blueStd= {0.10f,0.18f,0.21f};
+	    float[] greenAverages= {0.50f,0.74f,0.39f};float[] greenStd= {0.12f,0.08f,0.18f};
+	    float[] yellowAverages= {0.86f,0.38f,0.29f};float[] yellowStd= {0.05f,0.05f,0.18f};
+	    float[] redAverages= {0.98f,0.11f,0.14f};float[] redStd= {0.01f,0.04f,0.05f};
+	    
+	    if(	(Math.abs(rMean-blueAverages[0])<=2*blueStd[0] &&  Math.abs(gMean-blueAverages[1])<=2*blueStd[1] && Math.abs(bMean-blueAverages[2])<=2*blueStd[2])
+	     || 	(Math.abs(rMean-greenAverages[0])<=2*greenStd[0] &&  Math.abs(gMean-greenAverages[1])<=2*greenStd[1] && Math.abs(bMean-greenAverages[2])<=2*greenStd[2])  ) {
+	    	
+	    	
+	    	if((rMean-blueAverages[0])*(rMean-blueAverages[0])+(gMean-blueAverages[1])*(gMean-blueAverages[1])+(bMean-blueAverages[2])*(bMean-blueAverages[2])
+	    			<(rMean-greenAverages[0])*(rMean-greenAverages[0])+(gMean-greenAverages[1])*(gMean-greenAverages[1])+(bMean-greenAverages[2])*(bMean-greenAverages[2])) {
+	    		lcd.drawString("Blue",0,counter);
+	    		counter++;
+	    		if(TR==1){
+	    		double[] currentPosition=odometer.getXYT();
+	    		xFound=currentPosition[0];
+	    		yFound=currentPosition[1];
+	    		Sound.beep();
+	    		foundCan =  true;
+	    		}
+	    		isCan=true;
+	    	}
+	    	else {
+	    		lcd.drawString("Green",0,counter);
+	    		counter++;
+	    		if(TR==2){
+	    		double[] currentPosition=odometer.getXYT();
+	      		xFound=currentPosition[0];
+	      		yFound=currentPosition[1];
+	      		Sound.beep();
+	    		foundCan =  true;
+	    		}
+	    		isCan=true;
+	    	}
+	    }
+	    
+
+	    
+	    if(Math.abs(rMean-yellowAverages[0])<=2*yellowStd[0] &&  Math.abs(gMean-yellowAverages[1])<=2*yellowStd[1] && Math.abs(bMean-yellowAverages[2])<=2*yellowStd[2]) {
+	    	lcd.drawString("Yellow",0,counter);
+	    	counter++;
+	    	if(TR==3){
+	    	double[] currentPosition=odometer.getXYT();
+      		xFound=currentPosition[0];
+      		yFound=currentPosition[1];
+      		Sound.beep();
+	    	foundCan =  true;
+	    	}
+	    	isCan=true;
+	    }
+	    
+	    if(Math.abs(rMean-redAverages[0])<=2*redStd[0] &&  Math.abs(gMean-redAverages[1])<=2*redStd[1] && Math.abs(bMean-redAverages[2])<=2*redStd[2]) {
+	    	lcd.drawString("Red",0,counter);
+	    	counter++;
+	    	if(TR==4){
+	    	double[] currentPosition=odometer.getXYT();
+      		xFound=currentPosition[0];
+      		yFound=currentPosition[1];
+      		Sound.beep();
+	    	foundCan = true;
+	    	}
+	    	isCan=true;
+	    }
+	    
+	    if(foundCan==false){
+	    	Sound.twoBeeps();
+	    }
+	    
+	    try{Thread.sleep(1600);}
+	    catch (Exception e){}
+	    colorMotor.rotate(-170,false);
+	    return foundCan;
+	  }   
+	  
   
   
   public static boolean diffBlueGreen(double rMean,double gMean,double bMean) {
