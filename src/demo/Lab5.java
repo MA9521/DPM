@@ -32,7 +32,7 @@ public class Lab5 {
   private static final int ROTATE_SPEED = 75;
   
   private static final double TILE_SIZE=30.48;
-  private static final double SENSOR_TOCENTER=12.9;
+  private static final double SENSOR_TOCENTER=12.9; // vertical distance between line-detector and center of rotation
   
   
   //Setup the ultrasonic sensor
@@ -60,7 +60,7 @@ public class Lab5 {
   private static SensorModes myColorCan= new EV3ColorSensor(portColorCan);
   private static SampleProvider myColorStatusCan = myColorCan.getMode("RGB");
   private static float[] sampleColorCan= new float[myColorStatusCan.sampleSize()];
-  private static final int canDi=3;
+  private static final int canDi=3; //distance at which the robot will scan the can
   private static boolean foundCan=false;
   private static boolean isCan=false;
   private static int TR=4;
@@ -71,8 +71,8 @@ public class Lab5 {
   
   
   
-  private static final long CORRECTION_PERIOD = 10; //minimum period in ms for scanning light
-  private static final double LIGHT_THRESHOLD=0.03;
+  private static final long CORRECTION_PERIOD = 10; //minimum sampling period of 10 ms for line-detecting
+  private static final double LIGHT_THRESHOLD=0.03; //light threshold for line detection
   
   
   
@@ -93,12 +93,11 @@ public class Lab5 {
    * @param args none
    */
   public static void main(String[] args) throws OdometerExceptions {
-	  
-//	  leftMotor.setAcceleration(ACCELERATION);
-//	  rightMotor.setAcceleration(ACCELERATION);
+      
 
-	  
-	odometer = Odometer.getOdometer(leftMotor, rightMotor, TRACK, WHEEL_RAD);
+
+      
+    odometer = Odometer.getOdometer(leftMotor, rightMotor, TRACK, WHEEL_RAD);
     if(LLx<1.0) {LLx=1.0;} else if(LLx>7.0) {LLx=7.0;}
     if(LLy<1.0) {LLy=1.0;} else if(LLy>7.0) {LLy=7.0;}
     if(URx<1.0) {URx=1.0;} else if(URx>7.0) {URx=7.0;}
@@ -109,7 +108,7 @@ public class Lab5 {
     if(TR==2) {averages[0]=0.50f;averages[1]=0.74f;averages[2]=0.39f;deviations[0]=0.12f;deviations[1]=0.08f;deviations[2]=0.18f;}// grren can
     if(TR==3) {averages[0]=0.86f;averages[1]=0.38f;averages[2]=0.29f;deviations[0]=0.05f;deviations[1]=0.05f;deviations[2]=0.18f;} //yellow can
     if(TR==4) {averages[0]=0.98f;averages[1]=0.11f;averages[2]=0.14f;deviations[0]=0.01f;deviations[1]=0.04f;deviations[2]=0.05f;} //red can
-    
+    // depending on the color, set the "learned"averages and satandard deviations
     Display odometryDisplay = new Display(lcd);
     Thread odoThread = new Thread(odometer); 
     Thread odoDisplayThread = new Thread(odometryDisplay);
@@ -125,7 +124,7 @@ public class Lab5 {
     fallingEdge(); // call the falling edge method
     lightLocaLize(); // localize x,y,t coordinates then go to the lower left corner
     sweepRegion();
-    if(!foundCan) { // if the can was not found
+    if(!foundCan) { // if the can was not found, go to upper right corner and declare can not found
       double[] currentPosition=odometer.getXYT();
       double toTurn=getAngle(currentPosition[0],currentPosition[1],(URx)*TILE_SIZE, URy*TILE_SIZE,currentPosition[2]);
       double toAdvance=getDistance(currentPosition[0],currentPosition[1],(URx)*TILE_SIZE, URy*TILE_SIZE);
@@ -133,7 +132,7 @@ public class Lab5 {
       advance(toAdvance);
       lcd.drawString("Can Not Found",0,3);
     }
-    else {
+    else { // if the correct can is found,  get out of the search region, go to upper right corner and display coordinates of found can
       advance(-10);
       rotateInPlace(90);
       advance(15);
@@ -142,7 +141,7 @@ public class Lab5 {
       leftMotor.setSpeed(FORWARD_SPEED-1);rightMotor.setSpeed(FORWARD_SPEED);
       leftMotor.forward(); rightMotor.forward();
       while(currentY<(URy*TILE_SIZE)+15) {
-    	  currentY=odometer.getXYT()[1];
+          currentY=odometer.getXYT()[1];
       }
       leftMotor.stop(true);rightMotor.stop();
       
@@ -151,8 +150,8 @@ public class Lab5 {
       double currentX=odometer.getXYT()[0];
       leftMotor.setSpeed(FORWARD_SPEED-1);rightMotor.setSpeed(FORWARD_SPEED);
       leftMotor.forward(); rightMotor.forward();
-      while(currentX<(URx                                                                          *TILE_SIZE)+15) {
-    	  currentX=odometer.getXYT()[0];
+      while(currentX<(URx*TILE_SIZE)+15) {
+          currentX=odometer.getXYT()[0];
       }
       leftMotor.stop(true);rightMotor.stop();
       
@@ -172,11 +171,11 @@ public class Lab5 {
   
   /**
    * Localize the odometer's angle using the ultrasonic sensor and falling edge method
-   * @param SC
+   * @param SC starting corner
    */
   public static void fallingEdge() {
-	  leftMotor.setSpeed(ROTATE_SPEED);
-	  rightMotor.setSpeed(ROTATE_SPEED);
+      leftMotor.setSpeed(ROTATE_SPEED);
+      rightMotor.setSpeed(ROTATE_SPEED);
     int FALLING_DISTANCE= 29;
     myDistance.fetchSample(sampleUS,0);
     wallDist= (int)(sampleUS[0]*100.0);
@@ -343,7 +342,7 @@ public class Lab5 {
   
   /**
    * Corrects the angle using the 2 lateral light sensors
-   * @param theta the nagle to be set when both light sensors are on the line
+   * @param theta the angle to be set when both light sensors are on the line
    */
   private static void angleCorrection(double theta) {
     boolean motorRight=true; boolean motorLeft=true;
@@ -422,7 +421,7 @@ public class Lab5 {
     if(xCorrection) {odometer.setX(c+SENSOR_TOCENTER);}  //set the coordinate
     else {
       double angle=odometer.getXYT()[2];
-      if(angle<190 && angle>170) {
+      if(angle<190 && angle>170) { //depending on the robot heading, the center of rotation may be ahead or behind the sensor
         odometer.setY(c-SENSOR_TOCENTER);
         
       }
@@ -486,11 +485,11 @@ public class Lab5 {
     double i=0.0;
     for(i=0;i<numberLines;i++) { //sweep each line
       sweepLine(i);
-      if(foundCan) {return;}
+      if(foundCan) {return;} //if correct can found, end this method
       if(((int)i)%2==0 && i<numberLines-1) { //after each line, do the correction manoeuvre (depending this line
-                                             // was "going up" or "going down"
+                                             // was "going up" or "going down" ..Corecting x,y and theta before starting th next line
         advance(-10);
-    	rotateInPlace(90.0);
+        rotateInPlace(90.0);
         advance(15.0);
         rotateInPlace(90.0-10);
         angleCorrection(180.0);
@@ -509,8 +508,8 @@ public class Lab5 {
         rotateInPlace(180-odometer.getXYT()[2]-3);
         
       }
-      else if(((int)i)%2==1 && i<numberLines-1){
-    	  advance(-10);
+      else if(((int)i)%2==1 && i<numberLines-1){ //after a "going down line"
+          advance(-10);
         rotateInPlace(-90.0);
         advance(15.0);
         rotateInPlace(-90.0+10);
@@ -532,44 +531,49 @@ public class Lab5 {
     }
     
   }
+  
+  /**
+   * Sweep a line
+   * @param i the line number
+   */
   private static void sweepLine(double i) {
-	  int x = 0;
+      int x = 0;
     
     boolean continuing=true;
     
     leftMotor.setSpeed(FORWARD_SPEED-1);rightMotor.setSpeed(FORWARD_SPEED);
     leftMotor.forward(); rightMotor.forward();
-    while(continuing) { //at each intersection, check if there is a can or no
-    	isCan= false;
-    	leftMotor.forward(); rightMotor.forward();
-    	
+    while(continuing) { //continue going forward while the end of the line not yet reached
+        isCan= false;
+        leftMotor.forward(); rightMotor.forward();
+        
       myDistance.fetchSample(sampleUS,0); 
       wallDist= (int)(sampleUS[0]*100.0);
-      if(wallDist<5) {
-    	 
-    	  while (wallDist>canDi) {
-    		  myDistance.fetchSample(sampleUS,0); 
-    		  wallDist= (int)(sampleUS[0]*100.0);
-    	  }
-    	  
-    	  
-    	  leftMotor.stop(true);rightMotor.stop();
-          scanCan();
-          if(foundCan == true) {
-        	  return;
+      if(wallDist<5) { // if there is a can ahead
+         
+          while (wallDist>canDi) {
+              myDistance.fetchSample(sampleUS,0); 
+              wallDist= (int)(sampleUS[0]*100.0);
           }
-          if(isCan == true)
-          	 {
+          
+          
+          leftMotor.stop(true);rightMotor.stop();
+          scanCan(); //scan the can
+          if(foundCan == true) { //if correct can found, end this method
+              return;
+          }
+          if(isCan == true) // if not the looked-for can, begin the avoidance procedure
+             {
           avoid();
           
         }
       }
           double currentY=odometer.getXYT()[1];
-          if(((int)i)%2==0 && currentY>(URy*TILE_SIZE)+15) {
-        	  continuing=false;
+          if(((int)i)%2==0 && currentY>(URy*TILE_SIZE)+15) {  //check if end of line reached
+              continuing=false;
           }
           if(((int)i)%2==1 && currentY<(LLy*TILE_SIZE)-15) {
-        	  continuing=false;
+              continuing=false;
           }
           
       
@@ -579,7 +583,9 @@ public class Lab5 {
     
   }
   
-  
+  /**
+   * Avoidance procedure
+   */
   public static void avoid() {
     advance(-13);
     rotateInPlace(-90);
@@ -591,139 +597,125 @@ public class Lab5 {
     rotateInPlace(-90);
   }
   
+  /**
+   * scan the can in front of the robot
+   * @return true if correct can found, false otherswise
+   */
   public static boolean scanCan() {
-	  int counter=4;
-	  
-	 
-	  
-	  
-	    double rMean=0; double gMean=0; double bMean=0;
-	    int i=0;
-	    long correctionStart, correctionEnd;
-	    colorMotor.setSpeed(36); //will take 5 seconds to turn 180 degrees
-	    colorMotor.rotate(170,true);
-	    while(i<20) {
-	      correctionStart = System.currentTimeMillis();
-	      myColorStatusCan.fetchSample(sampleColorCan,0);
-	      double intem0=sampleColorCan[0];
-	      double intem1=sampleColorCan[1];
-	      double intem2=sampleColorCan[2];
-	      double norm= Math.sqrt(intem0*intem0+intem1*intem1+intem2*intem2);
-	      
-	      rMean+=intem0/norm;
-	      gMean+=intem1/norm;
-	      bMean+=intem2/norm;
-	      
-	      i++;
-	      
-	      correctionEnd = System.currentTimeMillis();
-	      if (correctionEnd - correctionStart < 200) { //take a measurement every 400 ms
-	        try {
-	          Thread.sleep(200 - (correctionEnd - correctionStart)); 
-	        } catch (InterruptedException e) {
-	          // there is nothing to be done here
-	        }
-	      }
-	      
-	      
-	    }
-	    
-	    
-	    
-	    rMean/=20; gMean/=20; bMean/=20;
-	    
-	    //float[] blueAverages= {0.48f,0.56f,0.62f};float[] blueStd= {0.16f,0.14f,0.18f};
-	    float[] blueAverages= {0.37f,0.68f,0.56f};float[] blueStd= {0.10f,0.18f,0.21f};
-	    float[] greenAverages= {0.50f,0.74f,0.39f};float[] greenStd= {0.12f,0.08f,0.18f};
-	    float[] yellowAverages= {0.86f,0.38f,0.29f};float[] yellowStd= {0.05f,0.05f,0.18f};
-	    float[] redAverages= {0.98f,0.11f,0.14f};float[] redStd= {0.01f,0.04f,0.05f};
-	    
-	    if(	(Math.abs(rMean-blueAverages[0])<=2*blueStd[0] &&  Math.abs(gMean-blueAverages[1])<=2*blueStd[1] && Math.abs(bMean-blueAverages[2])<=2*blueStd[2])
-	     || 	(Math.abs(rMean-greenAverages[0])<=2*greenStd[0] &&  Math.abs(gMean-greenAverages[1])<=2*greenStd[1] && Math.abs(bMean-greenAverages[2])<=2*greenStd[2])  ) {
-	    	
-	    	
-	    	if((rMean-blueAverages[0])*(rMean-blueAverages[0])+(gMean-blueAverages[1])*(gMean-blueAverages[1])+(bMean-blueAverages[2])*(bMean-blueAverages[2])
-	    			<(rMean-greenAverages[0])*(rMean-greenAverages[0])+(gMean-greenAverages[1])*(gMean-greenAverages[1])+(bMean-greenAverages[2])*(bMean-greenAverages[2])) {
-	    		lcd.drawString("Blue",0,counter);
-	    		counter++;
-	    		if(TR==1){
-	    		double[] currentPosition=odometer.getXYT();
-	    		xFound=currentPosition[0];
-	    		yFound=currentPosition[1];
-	    		Sound.beep();
-	    		foundCan =  true;
-	    		}
-	    		isCan=true;
-	    	}
-	    	else {
-	    		lcd.drawString("Green",0,counter);
-	    		counter++;
-	    		if(TR==2){
-	    		double[] currentPosition=odometer.getXYT();
-	      		xFound=currentPosition[0];
-	      		yFound=currentPosition[1];
-	      		Sound.beep();
-	    		foundCan =  true;
-	    		}
-	    		isCan=true;
-	    	}
-	    }
-	    
+      int counter=4;
+      
+     
+      
+      
+        double rMean=0; double gMean=0; double bMean=0;
+        int i=0;
+        long correctionStart, correctionEnd;
+        colorMotor.setSpeed(36); //will take 5 seconds to turn 180 degrees
+        colorMotor.rotate(170,true); //initiate 170 degree rotation of the sensor motor
+        while(i<20) { //take 20 measurements
+          correctionStart = System.currentTimeMillis();
+          myColorStatusCan.fetchSample(sampleColorCan,0);
+          double intem0=sampleColorCan[0];
+          double intem1=sampleColorCan[1];
+          double intem2=sampleColorCan[2];
+          double norm= Math.sqrt(intem0*intem0+intem1*intem1+intem2*intem2); //ambient light
+          
+          rMean+=intem0/norm;
+          gMean+=intem1/norm;
+          bMean+=intem2/norm;
+          
+          i++;
+          
+          correctionEnd = System.currentTimeMillis();
+          if (correctionEnd - correctionStart < 200) { //take a measurement every 200 ms
+            try {
+              Thread.sleep(200 - (correctionEnd - correctionStart)); 
+            } catch (InterruptedException e) {
+              // there is nothing to be done here
+            }
+          }
+          
+          
+        }
+        
+        
+        
+        rMean/=20; gMean/=20; bMean/=20;
+        
+        
+        float[] blueAverages= {0.37f,0.68f,0.56f};float[] blueStd= {0.10f,0.18f,0.21f};
+        float[] greenAverages= {0.50f,0.74f,0.39f};float[] greenStd= {0.12f,0.08f,0.18f};
+        float[] yellowAverages= {0.86f,0.38f,0.29f};float[] yellowStd= {0.05f,0.05f,0.18f};
+        float[] redAverages= {0.98f,0.11f,0.14f};float[] redStd= {0.01f,0.04f,0.05f};
+        
+        //if the averages are within the window for blue or green can, determine which can by computing the minimla distance
+        if( (Math.abs(rMean-blueAverages[0])<=2*blueStd[0] &&  Math.abs(gMean-blueAverages[1])<=2*blueStd[1] && Math.abs(bMean-blueAverages[2])<=2*blueStd[2])
+         ||     (Math.abs(rMean-greenAverages[0])<=2*greenStd[0] &&  Math.abs(gMean-greenAverages[1])<=2*greenStd[1] && Math.abs(bMean-greenAverages[2])<=2*greenStd[2])  ) {
+            
+            
+            if((rMean-blueAverages[0])*(rMean-blueAverages[0])+(gMean-blueAverages[1])*(gMean-blueAverages[1])+(bMean-blueAverages[2])*(bMean-blueAverages[2])
+                    <(rMean-greenAverages[0])*(rMean-greenAverages[0])+(gMean-greenAverages[1])*(gMean-greenAverages[1])+(bMean-greenAverages[2])*(bMean-greenAverages[2])) {
+                lcd.drawString("Blue",0,counter);
+                counter++;
+                if(TR==1){ //if we are looking for a blue can
+                double[] currentPosition=odometer.getXYT();
+                xFound=currentPosition[0];
+                yFound=currentPosition[1];
+                Sound.beep();
+                foundCan =  true; //declare that the looked-for can is found
+                }
+                isCan=true;
+            }
+            else {
+                lcd.drawString("Green",0,counter);
+                counter++;
+                if(TR==2){ //if we are looking for a green can
+                double[] currentPosition=odometer.getXYT();
+                xFound=currentPosition[0];
+                yFound=currentPosition[1];
+                Sound.beep();
+                foundCan =  true; //declare that the looked-for can is found
+                }
+                isCan=true;
+            }
+        }
+        
 
-	    
-	    if(Math.abs(rMean-yellowAverages[0])<=2*yellowStd[0] &&  Math.abs(gMean-yellowAverages[1])<=2*yellowStd[1] && Math.abs(bMean-yellowAverages[2])<=2*yellowStd[2]) {
-	    	lcd.drawString("Yellow",0,counter);
-	    	counter++;
-	    	if(TR==3){
-	    	double[] currentPosition=odometer.getXYT();
-      		xFound=currentPosition[0];
-      		yFound=currentPosition[1];
-      		Sound.beep();
-	    	foundCan =  true;
-	    	}
-	    	isCan=true;
-	    }
-	    
-	    if(Math.abs(rMean-redAverages[0])<=2*redStd[0] &&  Math.abs(gMean-redAverages[1])<=2*redStd[1] && Math.abs(bMean-redAverages[2])<=2*redStd[2]) {
-	    	lcd.drawString("Red",0,counter);
-	    	counter++;
-	    	if(TR==4){
-	    	double[] currentPosition=odometer.getXYT();
-      		xFound=currentPosition[0];
-      		yFound=currentPosition[1];
-      		Sound.beep();
-	    	foundCan = true;
-	    	}
-	    	isCan=true;
-	    }
-	    
-	    if(foundCan==false){
-	    	Sound.twoBeeps();
-	    }
-	    
-	    try{Thread.sleep(1600);}
-	    catch (Exception e){}
-	    colorMotor.rotate(-170,false);
-	    return foundCan;
-	  }   
-	  
-  
-  
-  public static boolean diffBlueGreen(double rMean,double gMean,double bMean) {
-	  float[] blueAverages= {0.48f,0.56f,0.62f};float[] blueStd= {0.16f,0.14f,0.18f};
-	  float[] greenAverages= {0.50f,0.74f,0.39f};float[] greenStd= {0.12f,0.08f,0.18f};
-	  if((Math.abs(rMean-averages[0])<=2*deviations[0] && Math.abs(gMean-averages[1])<=2*deviations[1] && Math.abs(bMean-averages[2])<=2*deviations[2])) {
-		  	if(TR==1 &&(rMean-blueAverages[0])*(rMean-blueAverages[0])+(gMean-blueAverages[1])*(gMean-blueAverages[1])+(bMean-blueAverages[2])*(bMean-blueAverages[2])
-		  			<(rMean-greenAverages[0])*(rMean-greenAverages[0])+(gMean-greenAverages[1])*(gMean-greenAverages[1])+(bMean-greenAverages[2])*(bMean-greenAverages[2])) {
-		  		return true;
-		  	}
-		  	else if(TR==2 &&(rMean-blueAverages[0])*(rMean-blueAverages[0])+(gMean-blueAverages[1])*(gMean-blueAverages[1])+(bMean-blueAverages[2])*(bMean-blueAverages[2])
-		  			>(rMean-greenAverages[0])*(rMean-greenAverages[0])+(gMean-greenAverages[1])*(gMean-greenAverages[1])+(bMean-greenAverages[2])*(bMean-greenAverages[2])) {
-		  		return true;
-		  	}
-	  
-	 }
-	  return false;
-  }
+        //if averages within the window for yellow can, then it is yellow
+        if(Math.abs(rMean-yellowAverages[0])<=2*yellowStd[0] &&  Math.abs(gMean-yellowAverages[1])<=2*yellowStd[1] && Math.abs(bMean-yellowAverages[2])<=2*yellowStd[2]) {
+            lcd.drawString("Yellow",0,counter);
+            counter++;
+            if(TR==3){
+            double[] currentPosition=odometer.getXYT();
+            xFound=currentPosition[0];
+            yFound=currentPosition[1];
+            Sound.beep();
+            foundCan =  true; //declare that the looked-for can is found
+            }
+            isCan=true;
+        }
+      //if averages within the window for red can, then it is red
+        if(Math.abs(rMean-redAverages[0])<=2*redStd[0] &&  Math.abs(gMean-redAverages[1])<=2*redStd[1] && Math.abs(bMean-redAverages[2])<=2*redStd[2]) {
+            lcd.drawString("Red",0,counter);
+            counter++;
+            if(TR==4){
+            double[] currentPosition=odometer.getXYT();
+            xFound=currentPosition[0];
+            yFound=currentPosition[1];
+            Sound.beep();
+            foundCan = true; //declare that the looked-for can is found
+            }
+            isCan=true;
+        }
+        
+        if(foundCan==false){ // if not looked-for can, emit 2 beeps
+            Sound.twoBeeps();
+        }
+        
+        try{Thread.sleep(1600);}
+        catch (Exception e){}
+        colorMotor.rotate(-170,false); //get the arm back to original configuration
+        return foundCan;
+      }   
 
 }
