@@ -25,6 +25,7 @@ public class Trial {
     public static final double radius = 2.093;
     public static final double track = 12.45;
     
+    //line detector sensor
     private static Port portColor= LocalEV3.get().getPort("S2");
     private static SensorModes myColor= new EV3ColorSensor(portColor);
     private static SampleProvider myColorStatus = myColor.getMode("Red");
@@ -33,11 +34,15 @@ public class Trial {
     private static final long CORRECTION_PERIOD = 10;
     private static final double LIGHT_THRESHOLD=0.05;
     
+    // ultrasonic sensor
     private static Port portUS= LocalEV3.get().getPort("S1");
-	  private static SensorModes myUS =new EV3UltrasonicSensor(portUS);
-	  private static SampleProvider myDistance= myUS.getMode("Distance");
-	  private static float[] sampleUS= new float[myDistance.sampleSize()];
-
+      private static SensorModes myUS =new EV3UltrasonicSensor(portUS);
+      private static SampleProvider myDistance= myUS.getMode("Distance");
+      private static float[] sampleUS= new float[myDistance.sampleSize()];
+    /**
+     * Main method
+     * @param args nothing
+     */
     public static void main (String[] args)
     {
         leftMotor.setAcceleration(500);
@@ -48,13 +53,13 @@ public class Trial {
             buttonChoice = Button.waitForAnyPress(); 
            
           } while (buttonChoice != Button.ID_UP && buttonChoice != Button.ID_DOWN && buttonChoice != Button.ID_LEFT && buttonChoice != Button.ID_RIGHT
-        		  && buttonChoice != Button.ID_ENTER && buttonChoice != Button.ID_ESCAPE);
+                  && buttonChoice != Button.ID_ENTER && buttonChoice != Button.ID_ESCAPE);
         
        
         if (buttonChoice == Button.ID_UP) { // if up button, go forward 6 tiles
-        	
+            
            // leftMotor.setSpeed(FORWARD_SPEED);rightMotor.setSpeed(FORWARD_SPEED); leftMotor.forward();rightMotor.forward();
-        	leftMotor.setSpeed(FORWARD_SPEED);
+            leftMotor.setSpeed(FORWARD_SPEED);
             rightMotor.setSpeed(FORWARD_SPEED);
             leftMotor.rotate(convertDistance(radius, 6.0 * TILE_SIZE), true);
             rightMotor.rotate(convertDistance(radius, 6.0 * TILE_SIZE), false);
@@ -62,7 +67,7 @@ public class Trial {
         }
         
         if (buttonChoice == Button.ID_RIGHT) { //if right button, turn in place 1080 degrees to the right- 3tours- (do this trial once the you're statisfied with the 6-tile test
-        	leftMotor.setSpeed(ROTATE_SPEED);
+            leftMotor.setSpeed(ROTATE_SPEED);
             rightMotor.setSpeed(ROTATE_SPEED);
 
             leftMotor.rotate(convertAngle(radius, track, 1080.0), true);
@@ -72,8 +77,8 @@ public class Trial {
         
         
         if (buttonChoice == Button.ID_DOWN) { //test the threshold required for line detection
-        	
-        	long correctionStart, correctionEnd;
+            
+            long correctionStart, correctionEnd;
         myColorStatus.fetchSample(sampleColor,0);
         float r1= sampleColor[0];
         leftMotor.setSpeed(FORWARD_SPEED);
@@ -82,12 +87,12 @@ public class Trial {
         rightMotor.rotate(convertDistance(radius, 3.0 * TILE_SIZE), true);
         while(true)
         {
-        	correctionStart = System.currentTimeMillis();
-        	
-        	myColorStatus.fetchSample(sampleColor,0);
-        	if(sampleColor[0]<r1-LIGHT_THRESHOLD) {Sound.beep();}
-        	r1=sampleColor[0];
-        	correctionEnd = System.currentTimeMillis();
+            correctionStart = System.currentTimeMillis();
+            
+            myColorStatus.fetchSample(sampleColor,0);
+            if(sampleColor[0]<r1-LIGHT_THRESHOLD) {Sound.beep();}
+            r1=sampleColor[0];
+            correctionEnd = System.currentTimeMillis();
             if (correctionEnd - correctionStart < CORRECTION_PERIOD) {
               try {
                 Thread.sleep(CORRECTION_PERIOD - (correctionEnd - correctionStart));
@@ -98,14 +103,14 @@ public class Trial {
         }
         }
         
-        if (buttonChoice == Button.ID_LEFT)
+        if (buttonChoice == Button.ID_LEFT) // check the measurements of the ultrasonic sensor
         {
-        	int wallDist;
-        	while(true) {
-        	myDistance.fetchSample(sampleUS,0);
+            int wallDist;
+            while(true) {
+            myDistance.fetchSample(sampleUS,0);
             wallDist= (int)(sampleUS[0]*100.0);
             System.out.println(wallDist);
-        	}
+            }
         }
         
         
