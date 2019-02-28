@@ -1,14 +1,16 @@
+package ca.mcgill.ecse211.lab5;
 import lejos.hardware.ev3.LocalEV3;
 import lejos.hardware.lcd.TextLCD;
 import lejos.hardware.motor.EV3LargeRegulatedMotor;
 import lejos.hardware.Sound;
-import lejos.hardware.ev3.LocalEV3;
 import lejos.hardware.port.Port;
 import lejos.hardware.sensor.SensorModes;
 import lejos.hardware.sensor.EV3UltrasonicSensor;
 import lejos.robotics.SampleProvider;
 import java.text.DecimalFormat;
 
+import ca.mcgill.ecse211.odometer.Odometer;
+import ca.mcgill.ecse211.odometer.OdometerExceptions;
 import lejos.hardware.Button;
 import lejos.hardware.sensor.EV3ColorSensor;
 
@@ -80,11 +82,10 @@ public class Lab5 {
   //Demo settings
   private static final int SC=0;
   private static double LLx=2.0;
-  private static double LLy=2.0;
-  private static double URx=4.0;
-  private static double URy=4.0;
+  private static double LLy=3.0;
+  private static double URx=5.0;
+  private static double URy=7.0;
   private static double numberLines= URx-LLx+1;
-  private static double numberIntersections= URy-LLy+1;
   
   private static Odometer odometer;
   
@@ -246,7 +247,7 @@ public class Lab5 {
   //Rotate the wheels until we are facing the corner
     leftMotor.rotate(-convertAngle(WHEEL_RAD, TRACK, goTo), true);
     rightMotor.rotate(convertAngle(WHEEL_RAD, TRACK, goTo), false);
-    if(SC==0) {odometer.setTheta(225.0);} //depending on the starting corner we determine which aangle to set
+    if(SC==0) {odometer.setTheta(225.0);} //depending on the starting corner we determine which angle to set
     if(SC==1) {odometer.setTheta(135.0);}
     if(SC==2) {odometer.setTheta(45.0);}
     if(SC==3) {odometer.setTheta(315.0);}
@@ -288,7 +289,7 @@ public class Lab5 {
     advance(toAdvance);  //go to 1/2 tile below the lower left corner
     
     currentPosition=odometer.getXYT();
-    rotateInPlace(-currentPosition[2]-4);
+    rotateInPlace(-currentPosition[2]-2);
   }
   
   /**
@@ -505,7 +506,7 @@ public class Lab5 {
         advance(toAdvance);
         
      
-        rotateInPlace(180-odometer.getXYT()[2]-3);
+        rotateInPlace(180-odometer.getXYT()[2]-10);
         
       }
       else if(((int)i)%2==1 && i<numberLines-1){ //after a "going down line"
@@ -536,9 +537,12 @@ public class Lab5 {
    * Sweep a line
    * @param i the line number
    */
+  static int counter=0;
   private static void sweepLine(double i) {
-      int x = 0;
-    
+    if(counter ==0){
+    	Sound.beep();
+    	counter++;
+    }
     boolean continuing=true;
     
     leftMotor.setSpeed(FORWARD_SPEED-1);rightMotor.setSpeed(FORWARD_SPEED);
@@ -591,7 +595,7 @@ public class Lab5 {
     rotateInPlace(-90);
     advance(15);
     rotateInPlace(90);
-    advance(TILE_SIZE+3);
+    advance(TILE_SIZE);
     rotateInPlace(90);
     advance(15);
     rotateInPlace(-90);
@@ -643,18 +647,31 @@ public class Lab5 {
         rMean/=20; gMean/=20; bMean/=20;
         
         
-        float[] blueAverages= {0.37f,0.68f,0.56f};float[] blueStd= {0.10f,0.18f,0.21f};
+        float[] blueAverages= {0.37f,0.68f,0.56f};float[] blueStd= {0.13f,0.15f,0.17f};
         float[] greenAverages= {0.50f,0.74f,0.39f};float[] greenStd= {0.12f,0.08f,0.18f};
         float[] yellowAverages= {0.86f,0.38f,0.29f};float[] yellowStd= {0.05f,0.05f,0.18f};
-        float[] redAverages= {0.98f,0.11f,0.14f};float[] redStd= {0.01f,0.04f,0.05f};
-        
+        float[] redAverages= {0.98f,0.11f,0.14f};float[] redStd= {0.05f,0.04f,0.05f};
+     
+        //if averages within the window for red can, then it is red
+        if(Math.abs(rMean-redAverages[0])<=2*redStd[0] &&  Math.abs(gMean-redAverages[1])<=2*redStd[1] && Math.abs(bMean-redAverages[2])<=2*redStd[2]) {
+            lcd.drawString("Red",0,counter);
+            counter++;
+            if(TR==4){
+            double[] currentPosition=odometer.getXYT();
+            xFound=currentPosition[0];
+            yFound=currentPosition[1];
+            Sound.beep();
+            foundCan = true; //declare that the looked-for can is found
+            }
+            isCan=true;
+        }
+        if(foundCan){return true;}
         //if the averages are within the window for blue or green can, determine which can by computing the minimla distance
         if( (Math.abs(rMean-blueAverages[0])<=2*blueStd[0] &&  Math.abs(gMean-blueAverages[1])<=2*blueStd[1] && Math.abs(bMean-blueAverages[2])<=2*blueStd[2])
          ||     (Math.abs(rMean-greenAverages[0])<=2*greenStd[0] &&  Math.abs(gMean-greenAverages[1])<=2*greenStd[1] && Math.abs(bMean-greenAverages[2])<=2*greenStd[2])  ) {
             
             
-            if((rMean-blueAverages[0])*(rMean-blueAverages[0])+(gMean-blueAverages[1])*(gMean-blueAverages[1])+(bMean-blueAverages[2])*(bMean-blueAverages[2])
-                    <(rMean-greenAverages[0])*(rMean-greenAverages[0])+(gMean-greenAverages[1])*(gMean-greenAverages[1])+(bMean-greenAverages[2])*(bMean-greenAverages[2])) {
+        	if(bMean>0.4){
                 lcd.drawString("Blue",0,counter);
                 counter++;
                 if(TR==1){ //if we are looking for a blue can
@@ -679,7 +696,7 @@ public class Lab5 {
                 isCan=true;
             }
         }
-        
+        if(foundCan){return true;}
 
         //if averages within the window for yellow can, then it is yellow
         if(Math.abs(rMean-yellowAverages[0])<=2*yellowStd[0] &&  Math.abs(gMean-yellowAverages[1])<=2*yellowStd[1] && Math.abs(bMean-yellowAverages[2])<=2*yellowStd[2]) {
@@ -694,20 +711,8 @@ public class Lab5 {
             }
             isCan=true;
         }
-      //if averages within the window for red can, then it is red
-        if(Math.abs(rMean-redAverages[0])<=2*redStd[0] &&  Math.abs(gMean-redAverages[1])<=2*redStd[1] && Math.abs(bMean-redAverages[2])<=2*redStd[2]) {
-            lcd.drawString("Red",0,counter);
-            counter++;
-            if(TR==4){
-            double[] currentPosition=odometer.getXYT();
-            xFound=currentPosition[0];
-            yFound=currentPosition[1];
-            Sound.beep();
-            foundCan = true; //declare that the looked-for can is found
-            }
-            isCan=true;
-        }
-        
+      
+        if(foundCan){return true;}
         if(foundCan==false){ // if not looked-for can, emit 2 beeps
             Sound.twoBeeps();
         }
