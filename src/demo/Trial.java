@@ -13,8 +13,8 @@ import lejos.robotics.SampleProvider;
  * Dummy class for testing stuff
  * 
  */
-public class Trial {
-
+public class Trial throws OdometerExceptions {
+  static final TextLCD lcd = LocalEV3.get().getTextLCD();
     private static final int FORWARD_SPEED = 125;
     
     private static final int ROTATE_SPEED = 75 ;
@@ -39,6 +39,8 @@ public class Trial {
       private static SensorModes myUS =new EV3UltrasonicSensor(portUS);
       private static SampleProvider myDistance= myUS.getMode("Distance");
       private static float[] sampleUS= new float[myDistance.sampleSize()];
+      
+      private static Odometer odometer;
     /**
      * Main method
      * @param args nothing
@@ -47,7 +49,12 @@ public class Trial {
     {
         leftMotor.setAcceleration(500);
         rightMotor.setAcceleration(500);
-        System.out.println("READY");
+        odometer = Odometer.getOdometer(leftMotor, rightMotor, track, radius);
+        Display odometryDisplay = new Display(lcd);
+        Thread odoThread = new Thread(odometer); 
+        Thread odoDisplayThread = new Thread(odometryDisplay);
+        odoThread.start();  // start 2 parallel theads of odometer and display
+        odoDisplayThread.start();
         
         do { //wait until one of the buttons is pressed
             buttonChoice = Button.waitForAnyPress(); 
