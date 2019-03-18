@@ -1,5 +1,6 @@
 package demo;
 
+import lejos.hardware.Button;
 import lejos.hardware.ev3.LocalEV3;
 import lejos.hardware.lcd.TextLCD;
 import lejos.hardware.motor.EV3LargeRegulatedMotor;
@@ -146,7 +147,7 @@ public class Demo {
   /**
    * The parameters obtained from the wifi, in the order mentioned in the instructions pdf
    */
-  private static int[] wifiParameters={0,1,0,0,5,5,0,0,0,0,2,5,3,7,4,8,6,10};
+  private static int[] wifiParameters;//={0,1,0,0,5,5,0,0,0,0,2,5,3,7,4,8,6,10};
   
   
   
@@ -179,7 +180,7 @@ public class Demo {
     
     
     WifiInfo info=new WifiInfo();
-    //wifiParameters= info.getInfo();
+    wifiParameters= info.getInfo();
     
     odometer = Odometer.getOdometer(leftMotor, rightMotor, TRACK, WHEEL_RAD);
     localizer=new Localizer(leftMotor,rightMotor,myColorStatusLeft,sampleColorLeft,myColorStatusRight,sampleColorRight
@@ -196,6 +197,8 @@ public class Demo {
     //Localizer.localize(); //localize the coordinates, go to the nearest intersection, beep 10 times
     odometer.setXYT(TILE_SIZE, TILE_SIZE, 0);
     Navigator.navigate();
+   
+    
   }
 
 }

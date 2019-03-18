@@ -264,7 +264,7 @@ public class Navigator {
 		  thresh= TILE_SIZE/Math.max(Math.sin(absoluteAngle), Math.cos(absoluteAngle));
 	  }
 	  if(!leftMotor.isMoving()) { //has not detected any can
-		  continue;
+		  return;
 	  }
 	  leftMotor.stop(true);rightMotor.stop();
 	  
