@@ -24,7 +24,7 @@ public class Trial  {
     private static final EV3LargeRegulatedMotor leftMotor =new EV3LargeRegulatedMotor(LocalEV3.get().getPort("C"));
     private static final EV3LargeRegulatedMotor rightMotor =new EV3LargeRegulatedMotor(LocalEV3.get().getPort("D"));
     public static final double radius = 2.093;
-    public static final double track = 13.1;
+    public static final double track = 13.36;
     
     //line detector sensor
     private static Port portColor= LocalEV3.get().getPort("S2");
