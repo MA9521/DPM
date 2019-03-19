@@ -171,6 +171,11 @@ public class Demo {
    * localizer
    */
   private static Navigator navigator;
+  
+  /**
+   * can detector
+   */
+  private static CanDetector canDetector;
   /**
    * The main method
    * @param args
@@ -187,6 +192,7 @@ public class Demo {
         ,myDistance,sampleUS,odometer,TRACK,WHEEL_RAD,SENSOR_TOCENTER,LIGHT_THRESHOLD,wifiParameters);
     navigator=new Navigator(leftMotor,rightMotor,myColorStatusLeft,sampleColorLeft,myColorStatusRight,sampleColorRight
             ,myDistance,sampleUS,odometer,TRACK,WHEEL_RAD,SENSOR_TOCENTER,LIGHT_THRESHOLD,wifiParameters);
+    canDetector=newCanDetector(colorMotor,myColorStatusCan,sampleColorCan,wifiParameters);
     Display odometryDisplay = new Display(lcd);
     Thread odoThread = new Thread(odometer); 
     Thread odoDisplayThread = new Thread(odometryDisplay);
