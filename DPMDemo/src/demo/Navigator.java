@@ -28,6 +28,10 @@ public class Navigator {
   private static EV3LargeRegulatedMotor rightMotor;
   
   /**
+   * The motor opening and closing the claw
+   */
+  private static EV3LargeRegulatedMotor clawMotor;
+  /**
    * The sample provider for the left line-detector sensor
    */
   private static SampleProvider myColorStatusLeft;
@@ -141,6 +145,7 @@ public class Navigator {
    * Constructor
    * @param leftM left motor
    * @param rightM rightmotor
+   * @param clawM the claw motor
    * @param cSLeft Sample provider for left-line detector
    * @param sLeft
    * @param cSRight Sample provider for right-line detector
@@ -154,11 +159,12 @@ public class Navigator {
    * @param lh light threshold for line detection
    * @param parameters  the parameters array
    */
-  public Navigator(EV3LargeRegulatedMotor leftM,EV3LargeRegulatedMotor rightM,SampleProvider cSLeft,float[] sLeft,
+  public Navigator(EV3LargeRegulatedMotor leftM,EV3LargeRegulatedMotor rightM,EV3LargeRegulatedMotor clawM, SampleProvider cSLeft,float[] sLeft,
       SampleProvider cSRight,float[] sRight,SampleProvider cSUS,float[] sUS,Odometer odo,double tr, double ra, double sTC
       ,double lh, int[] parameters) {
     leftMotor=leftM;
     rightMotor=rightM;
+    clawMotor = clawM;
     myColorStatusLeft=cSLeft;
     sampleColorLeft=sLeft;
     myColorStatusRight=cSRight;
@@ -188,17 +194,34 @@ public class Navigator {
   public static void navigate() {
     setEntrances();
     numberSquares=(SZ_UR_x-SZ_LL_x)*(SZ_UR_y-SZ_LL_y);
+    closeOpen(false);
     goToPoint(ENTER_X*TILE_SIZE,ENTER_Y*TILE_SIZE); //go to the tunnel entrance
+    
     goToPoint(EXIT_X*TILE_SIZE,EXIT_Y*TILE_SIZE); //traverse the tunnel
     
+    //closeOpen(true);// to open the claw
+    
+    //if(ENTER_T==0 || ENTER_T==180) {
+    //	cCorrection(EXIT_Y*TILE_SIZE,false);
+    //}
+  //  else {
+   // 	cCorrection(EXIT_X*TILE_SIZE,true);
+    //}
     goToPoint(odometer.getXYT()[0],(double)(SZ_LL_y)*TILE_SIZE); 
     goToPoint((double)(SZ_LL_x)*TILE_SIZE,(double)(SZ_LL_y)*TILE_SIZE);// by one vertical then one horizontal movement go to lower left
     setScanCoordinates();
     for(int i=0;i<5;i++) { //beep 5 times
       Sound.beep();
+      try {
+    	  Thread.sleep(1000);
+      }
+      catch(Exception e) {
+    	  
+      }
+      
     }
     
-    discoverTiles();
+    //discoverTiles();
     goToPoint((double)(SZ_UR_x)*TILE_SIZE,(double)(SZ_UR_y)*TILE_SIZE);
     
     
@@ -236,7 +259,22 @@ public class Navigator {
 	  }
   }
   
-   /**
+  /**
+   * Close or open the claw
+   * @param bool true when we want to open it
+   */
+  public static void closeOpen(boolean bool){
+	  clawMotor.setSpeed(100);
+	  if(bool==true){
+	  clawMotor.rotate(-170);
+	  clawMotor.stop();
+	  }else{
+		  clawMotor.rotate(170);
+		  clawMotor.stop();
+	  }
+  }
+  
+  /**
    * Scan a tile
    * @param i the number of the tile
    * @param clock scan clockwise or anticlokwise
@@ -300,7 +338,7 @@ public class Navigator {
     rotateInPlace(-odometer.getXYT()[2]);
     double y=odometer.getXYT()[1];
     leftMotor.forward();rightMotor.forward();
-    while(y<(double)(SZ_UR_y+0.5)*TILE_SIZE) { //get out by going in a vertial line, heading 0
+    while(y<(double)(SZ_UR_y+0.5)*TILE_SIZE) { //get out by going in a vertical line, heading 0
       myDistance.fetchSample(sampleUS,0);
       wallDist= (int)(sampleUS[0]*100.0);
       if(wallDist<10) {
@@ -321,6 +359,8 @@ public class Navigator {
     rotateInPlace(-60);
     advance(10);
   }
+  
+  
  
   
   /**
@@ -344,13 +384,13 @@ public class Navigator {
         ENTER_Y=((double)(TN_LL_y))-0.5;
         ENTER_T=0;
         EXIT_X= ENTER_X;
-        EXIT_Y=((double)(TN_UR_y))+0.5;
+        EXIT_Y=((double)(TN_UR_y))+1;
       }
       else {
         ENTER_X=((double)(TN_LL_x))-0.5;
         ENTER_Y=((double)(TN_LL_y+TN_UR_y))/2;
         ENTER_T=90;
-        EXIT_X=(double)(TN_UR_x)+0.5;
+        EXIT_X=(double)(TN_UR_x)+1;
         EXIT_Y= ENTER_Y;
       }
     }
@@ -360,13 +400,13 @@ public class Navigator {
         ENTER_Y=((double)(TN_UR_y))+0.5;
         ENTER_T=180;
         EXIT_X= ENTER_X;
-        EXIT_Y=((double)(TN_LL_y))-0.5;
+        EXIT_Y=((double)(TN_LL_y))-1;
       }
       else {
         ENTER_X=((double)(TN_UR_x))+0.5;
         ENTER_Y=((double)(TN_LL_y+TN_UR_y))/2;
         ENTER_T=-90;
-        EXIT_X=((double)(TN_LL_x))-0.5;
+        EXIT_X=((double)(TN_LL_x))-1;
         EXIT_Y= ENTER_Y;
       }
     }
