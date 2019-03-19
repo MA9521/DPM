@@ -236,41 +236,91 @@ public class Navigator {
 	  }
   }
   
-  /**
+   /**
    * Scan a tile
    * @param i the number of the tile
    * @param clock scan clockwise or anticlokwise
    */
   public static void discoverTile(int i,boolean clock) {
-	  double initialAngle=-90;
-	  double turningAngle=90;
-	  if(!clock) {
-		  initialAngle=90;
-		  turningAngle=-90;
-	  }
-	  goToPoint((double)(xCoor[i])*TILE_SIZE,(double)(yCoor[i])*TILE_SIZE); //stop at the intersection
-	  rotateInPlace(initialAngle-odometer.getXYT()[2]);
-	  double calc=convertAngle(WHEEL_RAD, TRACK, turningAngle); //begin the turn
-	  leftMotor.rotate((int) calc, true);
-	  rightMotor.rotate((int) -calc, true);
-	  myDistance.fetchSample(sampleUS,0);
-	  wallDist= (int)(sampleUS[0]*100.0);
-	  double absoluteAngle=Math.PI *Math.abs(odometer.getT2())/180.0;
-	  double thresh= TILE_SIZE/Math.max(Math.sin(absoluteAngle), Math.cos(absoluteAngle));
-	  while(leftMotor.isMoving() && wallDist>thresh) {
-		  myDistance.fetchSample(sampleUS,0);
-		  wallDist= (int)(sampleUS[0]*100.0);
-		  absoluteAngle=Math.PI *Math.abs(odometer.getT2())/180.0;
-		  thresh= TILE_SIZE/Math.max(Math.sin(absoluteAngle), Math.cos(absoluteAngle));
-	  }
-	  if(!leftMotor.isMoving()) { //has not detected any can
-		  return;
-	  }
-	  leftMotor.stop(true);rightMotor.stop();
-	  
+      double initialAngle=-90;
+      double turningAngle=90;
+      if(!clock) {
+          initialAngle=90;
+          turningAngle=-90;
+      }
+      goToPoint((double)(xCoor[i])*TILE_SIZE,(double)(yCoor[i])*TILE_SIZE); //stop at the intersection
+      rotateInPlace(initialAngle-odometer.getXYT()[2]);
+      double calc=convertAngle(WHEEL_RAD, TRACK, turningAngle); //begin the turn
+      double absoluteAngle=Math.PI *Math.abs((Math.abs(odometer.getT2())-45))/180.0;
+      double thresh= TILE_SIZE/Math.cos(absoluteAngle);
+      leftMotor.rotate((int) calc, true);
+      rightMotor.rotate((int) -calc, true);
+      myDistance.fetchSample(sampleUS,0);
+      wallDist= (int)(sampleUS[0]*100.0);
+      boolean somethingInTile=false;
+      while(leftMotor.isMoving() ) {
+          myDistance.fetchSample(sampleUS,0);
+          wallDist= (int)(sampleUS[0]*100.0);
+          absoluteAngle=Math.PI *Math.abs((Math.abs(odometer.getT2())-45))/180.0;
+          thresh= TILE_SIZE/Math.cos(absoluteAngle);
+          if(wallDist<thresh) {
+            somethingInTile=true;
+            leftMotor.stop(true);rightMotor.stop();
+            break;
+          }
+      }
+      if(!somethingInTile) { //has not detected any can
+          return;
+      }
+      myDistance.fetchSample(sampleUS,0);
+      wallDist= (int)(sampleUS[0]*100.0);
+      leftMotor.forward();rightMotor.forward();
+      while (wallDist>canDi) { //go to the can
+        myDistance.fetchSample(sampleUS,0);
+        wallDist= (int)(sampleUS[0]*100.0);
+      }
+      leftMotor.stop(true);rightMotor.stop();
+      canFound=CanDetector.scanCan();
+      if(!canFound) {
+        advance(-10);
+        rotateInPlace(-turningAngle);
+        advance(10);
+      }
+      else {
+        getOutZone();
+      }
+      
   }
   
+  /**
+   * Get out of the search zone
+   */
+  public static void getOutZone() {
+    advance(-10);
+    rotateInPlace(-odometer.getXYT()[2]);
+    double y=odometer.getXYT()[1];
+    leftMotor.forward();rightMotor.forward();
+    while(y<(double)(SZ_UR_y+0.5)*TILE_SIZE) { //get out by going in a vertial line, heading 0
+      myDistance.fetchSample(sampleUS,0);
+      wallDist= (int)(sampleUS[0]*100.0);
+      if(wallDist<10) {
+        avoid();
+      }
+      y=odometer.getXYT()[1];
+    }
+    leftMotor.stop(true);rightMotor.stop();
+    
+  }
   
+  /**
+   * Avoid a can
+   */
+  public static void avoid() {
+    rotateInPlace(60);
+    advance(10);
+    rotateInPlace(-60);
+    advance(10);
+  }
  
   
   /**
