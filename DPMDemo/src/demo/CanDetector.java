@@ -1,6 +1,9 @@
 package demo;
 import lejos.hardware.motor.EV3LargeRegulatedMotor;
 import lejos.robotics.SampleProvider;
+import lejos.hardware.Sound;
+import lejos.hardware.ev3.LocalEV3;
+import lejos.hardware.lcd.TextLCD;
 /**
  * 
  * Class containing the can detection methods
@@ -24,6 +27,17 @@ public class CanDetector {
   private static boolean foundCan=false;
   
   /**
+   * The LCD screen
+   */
+  static TextLCD lcd ;
+  
+  /**
+   * The odometer
+   */
+  private static Odometer odometer;
+
+  
+  /**
    * Arrays storing the values learned from Leaning.java in Lab5
    */
   private static float[] blueAverages= {0.37f,0.68f,0.56f};private static float[] blueStd= {0.13f,0.15f,0.17f};
@@ -39,7 +53,7 @@ public class CanDetector {
   /**
    * The motor turning the color sensor
    */
-  private static final EV3LargeRegulatedMotor colorMotor;
+  private static EV3LargeRegulatedMotor colorMotor;
   /**
    * The sample provider for the can color-detector sensor
    */
@@ -56,11 +70,13 @@ public class CanDetector {
    * @param sC float array storing the color measurements
    * @param parameters the wifi parameters
    */
-  public CanDetector(EV3LargeRegulatedMotor colorM, SampleProvider cSC,float[] sC, int[] parameters ) {
+  public CanDetector(EV3LargeRegulatedMotor colorM, SampleProvider cSC,float[] sC, int[] parameters,Odometer odo, TextLCD lc ) {
     colorMotor=colorM;
     myColorStatusCan=cSC;
     sampleColorCan=sC;
     TR=parameters[1];
+    odometer=odo;
+    lcd=lc;
   }
   
   
@@ -78,7 +94,7 @@ public class CanDetector {
         int i=0;
         long correctionStart, correctionEnd;
         colorMotor.setSpeed(36); //will take 5 seconds to turn 180 degrees
-        colorMotor.rotate(170,true); //initiate 170 degree rotation of the sensor motor
+        colorMotor.rotate(-170,true); //initiate 170 degree rotation of the sensor motor
         while(i<20) { //take 20 measurements
           correctionStart = System.currentTimeMillis();
           myColorStatusCan.fetchSample(sampleColorCan,0);
@@ -123,7 +139,6 @@ public class CanDetector {
             Sound.beep();
             foundCan = true; //declare that the looked-for can is found
             }
-            isCan=true;
         }
         if(foundCan){return true;}
         //if the averages are within the window for blue or green can, determine which can by computing the minimla distance
@@ -141,7 +156,6 @@ public class CanDetector {
                 Sound.beep();
                 foundCan =  true; //declare that the looked-for can is found
                 }
-                isCan=true;
             }
             else {
                 lcd.drawString("Green",0,counter);
@@ -153,7 +167,6 @@ public class CanDetector {
                 Sound.beep();
                 foundCan =  true; //declare that the looked-for can is found
                 }
-                isCan=true;
             }
         }
         if(foundCan){return true;}
@@ -169,7 +182,6 @@ public class CanDetector {
             Sound.beep();
             foundCan =  true; //declare that the looked-for can is found
             }
-            isCan=true;
         }
       
         if(foundCan){return true;}
@@ -179,7 +191,7 @@ public class CanDetector {
         
         try{Thread.sleep(1600);}
         catch (Exception e){}
-        colorMotor.rotate(-170,false); //get the arm back to original configuration
+        colorMotor.rotate(170,false); //get the arm back to original configuration
         return foundCan;
       }
 }
