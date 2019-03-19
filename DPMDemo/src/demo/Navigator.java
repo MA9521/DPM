@@ -261,7 +261,7 @@ public class Navigator {
       while(leftMotor.isMoving() ) {
           myDistance.fetchSample(sampleUS,0);
           wallDist= (int)(sampleUS[0]*100.0);
-          absoluteAngle=Math.PI *Math.abs((Math.abs(odometer.getT2())-45))/180.0;
+          absoluteAngle=Math.PI *Math.abs(45-(Math.abs(odometer.getT2())-45))/180.0;
           thresh= TILE_SIZE/Math.cos(absoluteAngle);
           if(wallDist<thresh) {
             somethingInTile=true;
