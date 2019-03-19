@@ -101,18 +101,18 @@ public class Localizer {
   /**
    * The forward speed of the robot
    */
-  private static final int FORWARD_SPEED = 125;
+  private static final int FORWARD_SPEED = 280;
   /**
    * The rotation speed of the robot
    */
-  private static final int ROTATE_SPEED = 75;
+  private static final int ROTATE_SPEED = 150;
   
   private static int wallDist;
   
   /**
    * The distance used to detect the falling edge
    */
-  private static final int FALLING_DISTANCE= 29;
+  private static final int FALLING_DISTANCE= 32;
   
   /**
    * Constructor
@@ -177,13 +177,13 @@ public class Localizer {
     myDistance.fetchSample(sampleUS,0); 
     wallDist= (int)(sampleUS[0]*100.0);
     advance(wallDist-16.0); // advance or reverse the robot so it is at 15 cm from the wall
-    rotateInPlace(currentChoice[2]);
+    rotateInPlace(currentChoice[2]+10);
     
     angleCorrection(currentChoice[3]); //use the 2 lateral light sensors to correct the angle
     advance(-5.0);
     cCorrection(currentChoice[4]*TILE_SIZE,false); //correct the y-value to 1*TILE_SIZE
     advance(15.0);
-    rotateInPlace(currentChoice[5]);
+    rotateInPlace(currentChoice[5]-3);
     
     cCorrection(currentChoice[6]*TILE_SIZE,true); //correct the x-value to 1*TILE_SIZE
     
@@ -191,7 +191,7 @@ public class Localizer {
     double[] nearestInter= getNearest(currentPosition);
     double toTurn=getAngle(currentPosition[0],currentPosition[1],nearestInter[0], nearestInter[1],currentPosition[2]);
     double toAdvance=getDistance(currentPosition[0],currentPosition[1],nearestInter[0], nearestInter[1]);
-    rotateInPlace(toTurn);
+    rotateInPlace(toTurn+20);
     advance(toAdvance);  //go to the nearest grid intersection
     
     Sound.beep();
@@ -221,7 +221,7 @@ public class Localizer {
     myColorStatusRight.fetchSample(sampleColorRight,0);
     float rRight= sampleColorRight[0];
     
-    leftMotor.forward();rightMotor.forward(); //keep goign forward
+    leftMotor.forward();rightMotor.forward(); //keep going forward
     
     while(motorRight || motorLeft) {  //while at least  motor is going forward
       correctionStart = System.currentTimeMillis();
@@ -229,7 +229,7 @@ public class Localizer {
       myColorStatusLeft.fetchSample(sampleColorLeft,0);
       
       
-      if(sampleColorLeft[0]<rLeft-LIGHT_THRESHOLD) { // if left sensor detects line, stop left motor
+      if(sampleColorLeft[0]<rLeft-LIGHT_THRESHOLD+0.004) { // if left sensor detects line, stop left motor
           leftMotor.stop(true);motorLeft=false;Sound.beep();
         }
       
@@ -261,23 +261,23 @@ public class Localizer {
   private static void cCorrection(double c,boolean xCorrection) {
     boolean cross=false;
     long correctionStart, correctionEnd;
-    myColorStatusLeft.fetchSample(sampleColorLeft,0);
-    float rLeft= sampleColorLeft[0];  // we use only the left sensor
+    myColorStatusRight.fetchSample(sampleColorRight,0);
+    float rRight= sampleColorRight[0];  // we use only the left sensor
     
     leftMotor.forward();rightMotor.forward(); // go forward until further notice
     
     while(!cross) { //while a line has not been detected
       correctionStart = System.currentTimeMillis();
-      myColorStatusLeft.fetchSample(sampleColorLeft,0);
+      myColorStatusRight.fetchSample(sampleColorRight,0);
       
-      if(sampleColorLeft[0]<rLeft-LIGHT_THRESHOLD) {
+      if(sampleColorRight[0]<rRight-LIGHT_THRESHOLD) {
         leftMotor.stop(true);rightMotor.stop();cross=true; Sound.beep();
       }
       
       
       
       
-      rLeft=sampleColorLeft[0];
+      rRight=sampleColorRight[0];
       correctionEnd = System.currentTimeMillis();
       if (correctionEnd - correctionStart < CORRECTION_PERIOD) {
         try {
@@ -401,7 +401,8 @@ public class Localizer {
    * @param SC starting corner
    */
   public static void fallingEdge() {
-      leftMotor.setSpeed(ROTATE_SPEED);
+	  
+	  leftMotor.setSpeed(ROTATE_SPEED);
       rightMotor.setSpeed(ROTATE_SPEED);
     
     myDistance.fetchSample(sampleUS,0);
