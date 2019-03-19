@@ -32,7 +32,10 @@ public class Demo {
    */
   private static final EV3LargeRegulatedMotor colorMotor =new EV3LargeRegulatedMotor(LocalEV3.get().getPort("B"));
 
-  
+  /**
+   * The motor opening and closing the claw
+   */
+  private static final EV3LargeRegulatedMotor clawMotor =new EV3LargeRegulatedMotor(LocalEV3.get().getPort("A"));
   /**
    * The LCD screen
    */
@@ -46,7 +49,7 @@ public class Demo {
   /**
    * The length of the axis of rotation (in cm)
    */
-  private static final double TRACK = 13.1;
+  private static final double TRACK = 13.36;
   /**
    * The forward speed of the robot
    */
@@ -65,7 +68,7 @@ public class Demo {
    * The distance between the center of axis of rotation and the line -detector sensor along
    * the front-back axis (in cm)
    */
-  private static final double SENSOR_TOCENTER=12.5;
+  private static final double SENSOR_TOCENTER=11.5;
 
   
   
@@ -139,10 +142,22 @@ public class Demo {
    * The sample provider for the can color-detector sensor
    */
   private static SampleProvider myColorStatusCan = myColorCan.getMode("RGB");
+  
+  /**
+   * The float array to store the colormeasurements
+   */
+  private static float[] sampleColorCan=new float[myColorStatusCan.sampleSize()];
+  
+  
   /**
    * The odometer
    */
   private static Odometer odometer;
+  
+  /**
+   * can detector
+   */
+  private static CanDetector canDetector;
   
   /**
    * The parameters obtained from the wifi, in the order mentioned in the instructions pdf
@@ -159,7 +174,7 @@ public class Demo {
   /**
    * light threshold for line detection
    */
-  private static final double LIGHT_THRESHOLD=0.05;
+  private static final double LIGHT_THRESHOLD=0.03;
   
   /**
    * localizer
@@ -171,11 +186,6 @@ public class Demo {
    * localizer
    */
   private static Navigator navigator;
-  
-  /**
-   * can detector
-   */
-  private static CanDetector canDetector;
   /**
    * The main method
    * @param args
@@ -190,18 +200,27 @@ public class Demo {
     odometer = Odometer.getOdometer(leftMotor, rightMotor, TRACK, WHEEL_RAD);
     localizer=new Localizer(leftMotor,rightMotor,myColorStatusLeft,sampleColorLeft,myColorStatusRight,sampleColorRight
         ,myDistance,sampleUS,odometer,TRACK,WHEEL_RAD,SENSOR_TOCENTER,LIGHT_THRESHOLD,wifiParameters);
-    navigator=new Navigator(leftMotor,rightMotor,myColorStatusLeft,sampleColorLeft,myColorStatusRight,sampleColorRight
+    navigator=new Navigator(leftMotor,rightMotor,clawMotor, myColorStatusLeft,sampleColorLeft,myColorStatusRight,sampleColorRight
             ,myDistance,sampleUS,odometer,TRACK,WHEEL_RAD,SENSOR_TOCENTER,LIGHT_THRESHOLD,wifiParameters);
-    canDetector=newCanDetector(colorMotor,myColorStatusCan,sampleColorCan,wifiParameters);
+    canDetector=new CanDetector(colorMotor,myColorStatusCan,sampleColorCan,wifiParameters,odometer,lcd);
+    System.out.println();
+    System.out.println();
+    System.out.println();
+    System.out.println();
+    System.out.println();
+    System.out.println();
+    System.out.println();
+    
     Display odometryDisplay = new Display(lcd);
+    
     Thread odoThread = new Thread(odometer); 
     Thread odoDisplayThread = new Thread(odometryDisplay);
     
     odoThread.start();  // start 2 parallel threads of odometer and display
     odoDisplayThread.start();
     
-    //Localizer.localize(); //localize the coordinates, go to the nearest intersection, beep 10 times
-    odometer.setXYT(TILE_SIZE, TILE_SIZE, 0);
+    Localizer.localize(); //localize the coordinates, go to the nearest intersection, beep 10 times
+    //odometer.setXYT(TILE_SIZE, TILE_SIZE, 0);
     Navigator.navigate();
    
     
